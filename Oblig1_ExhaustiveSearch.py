@@ -19,9 +19,6 @@ CitiesPermute = list(itertools.permutations(Cities))
 CitiesPermute = np.asarray(CitiesPermute)
 CitiesPermute = np.insert(CitiesPermute, 0, 0, axis = 1)
 
-startTime = time.time()
-start = datetime.now()
-
 def DistConvert(Index, Dist):
     #Want to calculate the distance between n cities and return the total distance
     #Remember to calculate to distance from end to start     
@@ -44,9 +41,13 @@ def ExhaustiveSearch(func, Index, DistMatrix, start, stop):
         increment += 1    
     return Shortest
 
+" Start profiler timer to measure execution time
+startTime = time.time()
+start = datetime.now()
+print (ExhaustiveSearch(DistConvert, CitiesPermute[0], CitiesDist, 0, len(CitiesPermute)))
 endTime = time.time()
 end = datetime.now()
+" Stop profiler timer and print results
 
-print (ExhaustiveSearch(DistConvert, CitiesPermute[0], CitiesDist, 0, len(CitiesPermute)))
 print(end - start)
 print (endTime - startTime)

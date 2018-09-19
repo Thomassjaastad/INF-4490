@@ -47,13 +47,9 @@ def TournamentSelection(lamb, k):  #k < lamb. lamb is a subset of population
 	mating_pool = []
 	while current_member <= lamb:
 		individuals = random.sample(population, k)    
-		EvalFitness = NormFitness(Fitness, CitiesDist, individuals)   
-		#print (EvalFitness)
-		#print (np.argmax(EvalFitness))
-		#print (individuals)		
+		EvalFitness = NormFitness(Fitness, CitiesDist, individuals)   		
 		mating_pool.append(individuals[np.argmax(EvalFitness)])
 		current_member += 1
-	#print (individual)
 	return mating_pool
 	
 #Make sure that population size is the same. Get rid of bad genotypes to store better genotypes
@@ -82,60 +78,72 @@ def PMX(ParentA, ParentB, start, end):
 			offspring[step] = ParentB[step]
 	return offspring
 
+def PMX_pair(ParentA, ParentB):
+	half = n//2
+	start = np.random.randint(0, half)
+	end = np.random.randint(half, n + 1)
+	return PMX(ParentA, ParentB, start, end), PMX(ParentB, ParentA, start, end) 
+
 def Mutation(Genotype):
 	half = n//2
-	swapA = np.random.randint(0, half)
-	swapB = np.random.randint(half, n + 1)
-	if swapA == swapB:
+	start = np.random.randint(0, half)
+	end = np.random.randint(half, n + 1)
+	if start == end:
 		raise ValueError('A and B are equal') 
-	Genotype[swapA : swapB] = np.flip(Genotype[swapA : swapB], 0) #Must be ints 
-	return Genotype, swapA, swapB 
-
+	Genotype[start : end] = np.flip(Genotype[start : end], 0) #Must be ints 
+	return Genotype, start, end 
 
 #Solver
-population = CitiesPermute[1 : 300, :]
-population = list(population)
 means = []
 dev = []
 best = []
 worst = []
-runs = 20
-generations = 100
+runs = 1
+generations = 10
 bestMeans = []
-Meangen = []
+
+Bestgen = np.zeros(generations)
+PopulationSize = 20
+subPopulation = 10
+NewFitness = np.zeros(PopulationSize)
+NextGenMutate = np.zeros((subPopulation, n))
+NextGenMutate2 = np.zeros((subPopulation, n))
+
+population = CitiesPermute[0 : PopulationSize, :]
+#Needs to be updated!!!!
 for k in range(runs):	
+	population = CitiesPermute[0 : PopulationSize, :]
+	population = list(population)
+	candidate = TournamentSelection(subPopulation, 2)
+	NewCandidates[0] = candidate
 	for t in range(generations):
-		candidate = TournamentSelection(50, 2)
-		NumbOffspring = len(candidate)//2
-		NextGen = np.zeros((NumbOffspring, n))
-		NextGenMutate = np.zeros((NumbOffspring, n))
-
-		for i in range(NumbOffspring):
-			offspring = (PMX(candidate[i], candidate[i + 1], Mutation(candidate[i])[1], Mutation(candidate[i + 1])[2]))
-			intoffspring = list(map(int, offspring))
-			NextGen[i] = intoffspring
-			NextGenMutate[i] = Mutation(intoffspring)[0]
-
-		New_generation = np.append(NextGen, NextGenMutate, axis = 0)
-		NewFitness = np.zeros((len(New_generation)))
-
-		for i in range (len(New_generation)):
+		for i in range(PopulationSize):
+			#NewCandidates = candidate
+			#print(NewCandidates[0])
+			try:
+				offspring1, offspring2 = PMX_pair(NewCandidates[i], NewCandidates[i + 1])
+				intoffspring1 = list(map(int, offspring1))
+				intoffspring2 = list(map(int, offspring2))
+				NextGenMutate[i] = Mutation(intoffspring1)[0]
+				NextGenMutate2[i] = Mutation(intoffspring2)[0]
+			except IndexError:
+				NextGenMutate[-1] = Mutation(intoffspring1)[0]
+				NextGenMutate2[-1] = Mutation(intoffspring2)[0]
+			New_generation = np.append(NextGenMutate, NextGenMutate2, axis = 0)
 			IntNewGen = list(map(int, New_generation[i]))
 			NewFitness[i] = Fitness(IntNewGen, CitiesDist)[0]
-
-		bestMeans.append(1/NewFitness[np.argmax(NewFitness)])
+		
+		NewCandidates[t + 1] = list(New_generation)	
+		#Bestgen[t] = np.mean(1/np.max(NewFitness))
 	best.append(1/NewFitness[np.argmax(NewFitness)])
 	worst.append(1/NewFitness[np.argmin(NewFitness)])
 	means.append(np.mean(1/NewFitness))
 	dev.append(np.std(1/NewFitness)) 
 
-#for i in range(0, len(bestMeans), runs):
-#	Meangen.append(bestMeans[i])
-
-#print(len(Meangen), len(bestMeans))
+#print (Bestgen)
 genaxis = np.linspace(1, generations, generations)
-#print (genaxis)
-#plt.plot(genaxis, , '*')
+#print (len(genaxis))
+#plt.plot(genaxis, Bestgen , '*')
 #plt.show()
 with open('best.txt','w') as f:
 	for i in range(runs):

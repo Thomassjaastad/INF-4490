@@ -75,12 +75,6 @@ class mlp():
         self.v += updateV
         self.w += updateW
 
-    #def Recall(self, data):
-    #    out = np.zeros(data.shape[0])
-    #    for n in range(data.shape[0]):
-    #        out[n] = self.forward(data[n])
-    #    return out    
-    
     def train(self, inputs, targets):
         for n in range(inputs.shape[0]):
             self.forward(inputs[n])
@@ -91,13 +85,13 @@ class mlp():
         for i in range(validationstargets.shape[0]):
             validation_out = self.forward(validationset[i])
             error[i] = np.linalg.norm(validation_out - validationstargets[i])**2
-            #print(validation_out.shape, validationstargets[i].shape)
         return sum(error)
 
     def earlystopping(self, inputs, targets, validationset, validationstargets):
-        epochs = 300
+        epochs = 400
         count = 0
         error = np.zeros(epochs)
+        epochs_final = 0
         for i in range(epochs - 1):
             self.train(inputs, targets)
             error[i] = self.error(validationset, validationstargets)       
@@ -105,21 +99,68 @@ class mlp():
                 count += 1
             else:
                 count = 0
+
             if count == 10:
                 print('Error increasing %d times in a row. STOP' % count)
+                print('Final epoch is:', i)
+                epochs_final = i
+                indices = np.linspace(i + 1, epochs, epochs - i)
+                error = np.delete(error, indices)
                 break
-            print(error[i])
+        return error, epochs_final
 
     def confusion_matrix(self, testset, testtargets):
-        confusionmat = np.zeros((testtargets.shape[1], testtargets.shape[1]))
-        		
+        confusionmat = np.zeros((testtargets.shape[1], testtargets.shape[1]))		
+        accuracy = 0
         for n in range(testtargets.shape[0]):
-            #print(n)
             predictedoutput = self.forward(testset[n])
-            #print(predictedoutput)
             pred = np.argmax(predictedoutput)
             true = np.argmax(testtargets[n]) 
             confusionmat[pred, true] += 1
-        return confusionmat
+            if pred == true:
+                accuracy += 1
+        accuracy = accuracy/testtargets.shape[0]*100
+        print('--------------------------------------------------------------------------------------------')
+        print(f'Accuracy is found to be {accuracy} % with {self.nhidden} hidden nodes in hidden layer')
+        print('--------------------------------------------------------------------------------------------') 
+        return accuracy
 
+    def k_fold(self, inputs_total, targets_total, Numbfolds):
+        dataset = np.split(inputs_total[:-7], Numbfolds)
+        dataset = np.array(dataset)
+        targetset = np.split(targets_total[:-7], Numbfolds)
+        targetset = np.array(targetset)
+        #Holding out data to test on
+        test = dataset[0]
+        test_target = targetset[0]
+        
+        for i in range(dataset.shape[1]*Numbfolds, inputs_total.shape[0]):
+            test = np.vstack((test, inputs_total[i,:]))
+            test_target = np.vstack((test_target, targets_total[i,:]))
+        #TRAINING AND VALIDATIONSET REMAIN, K-1 folds:
+        train_and_test = np.delete(dataset, 0, 0)
+        train_and_test_targets = np.delete(targetset, 0, 0)
+        #print(train_and_test.shape)
+        #print(train_and_test_targets.shape, np.delete(train_and_test_targets, 0 , 0).shape )
+        valid = []
+        train = []
+        valid_targets = []
+        train_targets = []
+        for k in range(Numbfolds - 1):
+            valid.append(train_and_test[k])
+            valid_targets.append(train_and_test_targets[k])
 
+            train.append(np.delete(train_and_test, k, 0))
+            train_targets.append(np.delete(train_and_test_targets, k , 0))
+
+            train_and_test = train_and_test
+            train_and_test_targets = train_and_test_targets
+           
+        valid = np.array(valid)
+        valid_targets = np.array(valid_targets)
+        
+        train = np.array(train) 
+        train_targets = np.array(train_targets)
+        train = np.reshape(train, (Numbfolds - 1,(Numbfolds - 2)*train_and_test.shape[1], 41))
+        train_targets = np.reshape(train_targets, (Numbfolds-1, (Numbfolds - 2)*train_and_test.shape[1], 8))
+        return train, train_targets, valid, valid_targets, test, test_target
